@@ -14,8 +14,10 @@ jobs:
         with:
           submodules: false
 
-      - name: Checkout anki-upstream (shallow, só rslib)
-        run: git submodule update --init --depth 1 anki-upstream
+      - name: Checkout anki-upstream + submodules ftl
+        run: |
+          git submodule update --init --depth 1 anki-upstream
+          git -C anki-upstream submodule update --init --depth 1 ftl/core-repo ftl/qt-repo
 
       - name: Instalar Rust com targets iOS
         run: |
