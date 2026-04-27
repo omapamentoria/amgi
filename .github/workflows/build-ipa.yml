@@ -1,0 +1,66 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout (sem submodule anki-upstream)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Instalar Rust com targets iOS
+        run: |
+          rustup target add aarch64-apple-ios
+          rustup target add aarch64-apple-ios-sim
+
+      - name: Instalar protoc e xcodegen
+        run: brew install protobuf xcodegen
+
+      - name: Build Rust XCFramework
+        run: |
+          chmod +x scripts/build-xcframework.sh
+          ./scripts/build-xcframework.sh
+
+      - name: Gerar projeto Xcode
+        run: cd AmgiApp && xcodegen generate
+
+      - name: Resolver Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project AmgiApp/AmgiApp.xcodeproj \
+            -scheme AmgiApp
+
+      - name: Build e arquivar (sem assinatura)
+        run: |
+          xcodebuild archive \
+            -project AmgiApp/AmgiApp.xcodeproj \
+            -scheme AmgiApp \
+            -archivePath ${{ github.workspace }}/build/AmgiApp.xcarchive \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            | xcpretty || true
+
+      - name: Empacotar como .ipa
+        run: |
+          APP_PATH=$(find ${{ github.workspace }}/build/AmgiApp.xcarchive/Products -name "*.app" | head -1)
+          echo "App encontrado: $APP_PATH"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r AmgiApp.ipa Payload/
+          ls -lh AmgiApp.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: AmgiApp-ipa
+          path: AmgiApp.ipa
+          retention-days: 7
