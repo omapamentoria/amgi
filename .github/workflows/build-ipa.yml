@@ -32,6 +32,14 @@ jobs:
           chmod +x scripts/build-xcframework.sh
           ./scripts/build-xcframework.sh
 
+      - name: Selecionar Xcode mais recente disponível
+        run: |
+          ls /Applications | grep Xcode
+          XCODE=$(ls /Applications | grep "^Xcode_" | sort -V | tail -1)
+          echo "Usando: $XCODE"
+          sudo xcode-select -s "/Applications/$XCODE/Contents/Developer"
+          swift --version
+
       - name: Gerar projeto Xcode
         run: cd AmgiApp && xcodegen generate
 
